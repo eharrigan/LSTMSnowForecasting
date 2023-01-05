@@ -3,7 +3,6 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from statsmodels.tsa.stattools import adfuller
 from kerastuner.tuners import RandomSearch
 from kerastuner.engine.hyperparameters import HyperParameters
 import sys
@@ -80,7 +79,7 @@ def build_model(hp):
                 return_sequences=True,
                 input_shape=(x_train.shape[-2:])))
     
-    model.add(tf.keras.layers.Dropout(hp.Float('1st dropout_rate',min_value=.1, max_value=.6,step=.1), return_sequences=True))
+    model.add(tf.keras.layers.Dropout(hp.Float('1st dropout_rate',min_value=.1, max_value=.6,step=.1)))
     for i in range(hp.Int('n_layers', 1, 4)):
         model.add(tf.keras.layers.LSTM(
                         hp.Int(f'lstm_{i}_units',min_value=32,max_value=256,step=32),
@@ -113,7 +112,9 @@ tuner.search(
         y=y_train,
         epochs=EPOCHS,
         batch_size=BATCH_SIZE,
-        validation_data=(x_test,y_test))
+        validation_data=(x_test,y_test),
+        callbacks=[tf.keras.callbacks.TensorBoard("./" + PROJECT_NAME + "/log")]
+        )
 #save the 10 best models in the project directory
 best_models = tuner.get_best_models(num_models=10)
 for count, model in enumerate(best_models):

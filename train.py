@@ -2,27 +2,28 @@ import tensorflow as tf
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-import os
 import pandas as pd
 from statsmodels.tsa.stattools import adfuller
 from kerastuner.tuners import RandomSearch
 from kerastuner.engine.hyperparameters import HyperParameters
-
-mpl.rcParams['figure.figsize'] = (8, 6)
-mpl.rcParams['axes.grid'] = False
+import sys
 
 
+
+if len(sys.argv) != 4:
+    print("Usage: python3 train.py [project name] [epochs] [# of trials]")
+    quit()
 dataset = pd.read_pickle("data/MHP.pkl")
 
-#check for stationarity
 
 
 BATCH_SIZE =64 
 BUFFER_SIZE = 10000
 history = 1117
 target = 180
-
-EPOCHS = 100
+EPOCHS = int(sys.argv[2])
+TRIALS = int(sys.argv[3])
+PROJECT_NAME = sys.argv[1]
 
 features = dataset[['DEPTH', 'SWC', 'TEMP']]
 features.index = dataset['DATE TIME']
@@ -78,13 +79,15 @@ def build_model(hp):
                 hp.Int('input_unit', min_value=32,max_value=512,step=32),
                 return_sequences=True,
                 input_shape=(x_train.shape[-2:])))
+    
+    model.add(tf.keras.layers.Dropout(hp.Float('1st dropout_rate',min_value=.1, max_value=.6,step=.1), return_sequences=True))
     for i in range(hp.Int('n_layers', 1, 4)):
         model.add(tf.keras.layers.LSTM(
-                        hp.Int(f'lstm_{i}_units',min_value=32,max_value=512,step=32),
+                        hp.Int(f'lstm_{i}_units',min_value=32,max_value=256,step=32),
                         return_sequences=True))
     model.add(tf.keras.layers.LSTM(
-        hp.Int('layer_2_neurons',min_value=32,max_value=512,step=32)))
-    model.add(tf.keras.layers.Dropout(hp.Float('Dropout_rate',min_value=0, max_value=.5,step=.1)))
+        hp.Int('layer_2_neurons',min_value=32,max_value=128,step=32)))
+    model.add(tf.keras.layers.Dropout(hp.Float('2nd dropout_rate',min_value=.1, max_value=.6,step=.1)))
     model.add(tf.keras.layers.Dense(180, activation=hp.Choice('dense_activation',values=
         ['relu', 'sigmoid', 'tanh'],default='sigmoid')))
     model.compile(loss='mean_squared_error', optimizer='adam',metrics = ['mse'])
@@ -102,19 +105,16 @@ print(x_test.shape)
 tuner = RandomSearch(
         build_model,
         objective='mse',
-        max_trials=8,
+        max_trials=TRIALS,
         executions_per_trial=2)
 
 tuner.search(
         x=x_train,
         y=y_train,
-        epochs=25,
+        epochs=EPOCHS,
         batch_size=BATCH_SIZE,
         validation_data=(x_test,y_test))
-
-best_model = tuner.get_best_models(num_models=1)[0]
-
-tf.keras.models.save_model(best_model,'LSTM.h5')
-
-for x, y in val_data_multi.take(3):
-    multi_step_plot(x[0], y[0], best_model.predict(x)[0])
+#save the 10 best models in the project directory
+best_models = tuner.get_best_models(num_models=10)
+for count, model in enumerate(best_models):
+    tf.keras.models.save_model(model, PROJECT_NAME + '/LSTM_'+str(count)+'.h5')

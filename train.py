@@ -75,20 +75,19 @@ def multi_step_plot(history, true_future, prediction):
 def build_model(hp):
     model = tf.keras.models.Sequential()
     model.add(tf.keras.layers.LSTM(
-                hp.Int('input_unit', min_value=32,max_value=256,step=32),
+                hp.Int('input_unit', min_value=96,max_value=384,step=32),
                 return_sequences=True,
                 input_shape=(x_train.shape[-2:])))
     
-    model.add(tf.keras.layers.Dropout(hp.Float('1st dropout_rate',min_value=.1, max_value=.6,step=.1)))
-    for i in range(hp.Int('n_layers', 1, 4)):
+    model.add(tf.keras.layers.Dropout(hp.Float('1st dropout_rate',min_value=.3, max_value=.6,step=.1)))
+    for i in range(hp.Int('n_layers', 2, 4)):
         model.add(tf.keras.layers.LSTM(
-                        hp.Int(f'lstm_{i}_units',min_value=32,max_value=256,step=32),
+                        hp.Int(f'lstm_{i}_units',min_value=96,max_value=256,step=32),
                         return_sequences=True))
     model.add(tf.keras.layers.LSTM(
         hp.Int('layer_2_neurons',min_value=32,max_value=128,step=32)))
-    model.add(tf.keras.layers.Dropout(hp.Float('2nd dropout_rate',min_value=.1, max_value=.6,step=.1)))
-    model.add(tf.keras.layers.Dense(180, activation=hp.Choice('dense_activation',values=
-        ['relu', 'sigmoid', 'tanh'],default='sigmoid')))
+    model.add(tf.keras.layers.Dropout(hp.Float('2nd dropout_rate',min_value=.2, max_value=.5,step=.1)))
+    model.add(tf.keras.layers.Dense(180, activation='sigmoid'))
     model.compile(loss='mean_squared_error', optimizer='adam',metrics = ['mse'])
     return model
 

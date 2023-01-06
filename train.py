@@ -104,7 +104,8 @@ tuner = RandomSearch(
         build_model,
         objective='mse',
         max_trials=TRIALS,
-        executions_per_trial=4)
+        executions_per_trial=4,
+        project_name=PROJECT_NAME)
 
 tuner.search(
         x=x_train,
@@ -112,8 +113,7 @@ tuner.search(
         epochs=EPOCHS,
         batch_size=BATCH_SIZE,
         validation_data=(x_test,y_test),
-        callbacks=[tf.keras.callbacks.TensorBoard("./" + PROJECT_NAME + "/log")]
-        )
+        callbacks=[tf.keras.callbacks.TensorBoard("./" + PROJECT_NAME + "/log")])
 #save the 10 best models in the project directory
 best_models = tuner.get_best_models(num_models=10)
 for count, model in enumerate(best_models):

@@ -16,7 +16,7 @@ dataset = pd.read_pickle("data/MHP.pkl")
 
 
 
-BATCH_SIZE =64 
+BATCH_SIZE =32 
 BUFFER_SIZE = 10000
 history = 1117
 target = 180
@@ -75,7 +75,7 @@ def multi_step_plot(history, true_future, prediction):
 def build_model(hp):
     model = tf.keras.models.Sequential()
     model.add(tf.keras.layers.LSTM(
-                hp.Int('input_unit', min_value=32,max_value=512,step=32),
+                hp.Int('input_unit', min_value=32,max_value=256,step=32),
                 return_sequences=True,
                 input_shape=(x_train.shape[-2:])))
     

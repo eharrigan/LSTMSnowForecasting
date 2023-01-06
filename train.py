@@ -75,7 +75,7 @@ def multi_step_plot(history, true_future, prediction):
 def build_model(hp):
     model = tf.keras.models.Sequential()
     model.add(tf.keras.layers.LSTM(
-                hp.Int('input_unit', min_value=96,max_value=384,step=32),
+                hp.Int('input_unit', min_value=128,max_value=384,step=32),
                 return_sequences=True,
                 input_shape=(x_train.shape[-2:])))
     
@@ -104,7 +104,7 @@ tuner = RandomSearch(
         build_model,
         objective='mse',
         max_trials=TRIALS,
-        executions_per_trial=2)
+        executions_per_trial=4)
 
 tuner.search(
         x=x_train,

@@ -5,34 +5,28 @@ import numpy as np
 import pandas as pd
 from kerastuner.tuners import RandomSearch
 from kerastuner.engine.hyperparameters import HyperParameters
+from sklearn.preprocessing import MinMaxScaler
 import sys
 
 
 
-if len(sys.argv) != 4:
-    print("Usage: python3 train.py [project name] [epochs] [# of trials]")
-    quit()
 dataset = pd.read_pickle("data/MHP.pkl")
 
 
 
-BATCH_SIZE =32 
+BATCH_SIZE = 32 
 BUFFER_SIZE = 10000
-history = 1117
+history =720 
 target = 180
-EPOCHS = int(sys.argv[2])
-TRIALS = int(sys.argv[3])
-PROJECT_NAME = sys.argv[1]
+
 
 features = dataset[['DEPTH', 'SWC', 'TEMP']]
 features.index = dataset['DATE TIME']
-TRAIN_SPLIT = len(features)*3//5
-
+TRAIN_SPLIT = len(features)*2//3
+sc = MinMaxScaler(feature_range=(0,1))
 data = features.values
-data_mean = data[:TRAIN_SPLIT].mean(axis=0)
-data_std = data[:TRAIN_SPLIT].std(axis=0)
+data_transformed = sc.fit_transform(data)
 
-data = (data-data_mean)/data_std
 
 
 def multivariate_data(dataset, target, start_index, end_index, history_size,
@@ -74,47 +68,67 @@ def multi_step_plot(history, true_future, prediction):
 
 def build_model(hp):
     model = tf.keras.models.Sequential()
+    
     model.add(tf.keras.layers.LSTM(
-                hp.Int('input_unit', min_value=128,max_value=384,step=32),
+                hp.Int('input_unit', min_value=96,max_value=256,step=32),
                 return_sequences=True,
                 input_shape=(x_train.shape[-2:])))
     
-    model.add(tf.keras.layers.Dropout(hp.Float('1st dropout_rate',min_value=.3, max_value=.6,step=.1)))
-    for i in range(hp.Int('n_layers', 2, 4)):
+    for i in range(hp.Int('n_layers', 1, 2) ):
         model.add(tf.keras.layers.LSTM(
-                        hp.Int(f'lstm_{i}_units',min_value=96,max_value=256,step=32),
+                        hp.Int(f'lstm_{i}_units',min_value=64,max_value=256,step=32),
                         return_sequences=True))
     model.add(tf.keras.layers.LSTM(
-        hp.Int('layer_2_neurons',min_value=32,max_value=128,step=32)))
-    model.add(tf.keras.layers.Dropout(hp.Float('2nd dropout_rate',min_value=.2, max_value=.5,step=.1)))
+        hp.Int('layer_2_neurons',min_value=32,max_value=64,step=32)))
     model.add(tf.keras.layers.Dense(180, activation='sigmoid'))
-    model.compile(loss='mean_squared_error', optimizer='adam',metrics = ['mse'])
+    model.compile(loss='mean_squared_error', optimizer='RMSProp',metrics = ['mse'])
     return model
 
     
 
 
 
-x_train, y_train = multivariate_data(data, data[:, 1], 0, TRAIN_SPLIT, history, target, 1)
-x_test, y_test = multivariate_data(data, data[:, 1], TRAIN_SPLIT, None, history, target, 1)
+x_train, y_train = multivariate_data(data_transformed, data_transformed[:, 1], 0, TRAIN_SPLIT, history, target, 1)
+x_test, y_test = multivariate_data(data_transformed, data_transformed[:, 1], TRAIN_SPLIT, None, history, target, 1)
+train = tf.data.Dataset.from_tensor_slices((x_train, y_train)).shuffle(10000).batch(BATCH_SIZE)
+x_shape = x_train.shape
+y_shape = y_train.shape
+print(x_shape)
+print(x_test.shape)
+x_train = np.concatenate([x for x, y in train], axis=0).reshape(x_shape)
+y_train = np.concatenate([y for x, y in train], axis=0).reshape(y_shape)
+
 val_data_multi = tf.data.Dataset.from_tensor_slices((x_test, y_test))
 val_data_multi = val_data_multi.batch(BATCH_SIZE)
-print(x_test.shape)
-tuner = RandomSearch(
-        build_model,
-        objective='mse',
-        max_trials=TRIALS,
-        executions_per_trial=4,
-        project_name=PROJECT_NAME)
+if __name__ == "__main__":
+    if len(sys.argv) != 4:
+        print("Usage: python3 train.py [project name] [epochs] [# of trials]")
+        quit()
+    EPOCHS = int(sys.argv[2])
+    TRIALS = int(sys.argv[3])
+    PROJECT_NAME = sys.argv[1]
+    tuner = RandomSearch(
+            build_model,
+            objective='val_loss',
+            max_trials=TRIALS,
+            executions_per_trial=1,
+            project_name=PROJECT_NAME)
+    model = tf.keras.models.Sequential()
+    model.add(tf.keras.layers.LSTM(360, input_shape=(x_train.shape[-2:]), return_sequences=True))
 
-tuner.search(
-        x=x_train,
-        y=y_train,
-        epochs=EPOCHS,
-        batch_size=BATCH_SIZE,
-        validation_data=(x_test,y_test),
-        callbacks=[tf.keras.callbacks.TensorBoard("./" + PROJECT_NAME + "/log")])
+    model.add(tf.keras.layers.LSTM(64, input_shape=(x_train.shape[-2:]), return_sequences=False))
+    model.add(tf.keras.layers.Dense(180, activation='sigmoid'))
+    model.compile(optimizer=tf.keras.optimizers.Adam(), loss='mse')
+    history = model.fit(train, epochs = 300, validation_data=val_data_multi)
+    tf.keras.models.save_model(model, "test.h5")
+    #tuner.search(
+    #        x=x_train,
+    #        y=y_train,
+    #        epochs=EPOCHS,
+    #        batch_size=BATCH_SIZE,
+    #        validation_data=(x_test,y_test),
+    #        callbacks=[tf.keras.callbacks.TensorBoard("./" + PROJECT_NAME + "/log")])
 #save the 10 best models in the project directory
-best_models = tuner.get_best_models(num_models=10)
-for count, model in enumerate(best_models):
-    tf.keras.models.save_model(model, PROJECT_NAME + '/LSTM_'+str(count)+'.h5')
+    #best_models = tuner.get_best_models(num_models=10)
+    #for count, model in enumerate(best_models):
+    #    tf.keras.models.save_model(model, PROJECT_NAME + '/LSTM_'+str(count)+'.h5')

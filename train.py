@@ -114,10 +114,10 @@ if __name__ == "__main__":
             executions_per_trial=1,
             project_name=PROJECT_NAME)
     model = tf.keras.models.Sequential()
-    model.add(tf.keras.layers.LSTM(180, input_shape=(x_train.shape[-2:]), return_sequences=True))
+    model.add(tf.keras.layers.LSTM(150, input_shape=(x_train.shape[-2:]), return_sequences=True))
 
-    model.add(tf.keras.layers.LSTM(64, input_shape=(x_train.shape[-2:]), return_sequences=False))
-    model.add(tf.keras.layers.Dropout(.3)
+    model.add(tf.keras.layers.LSTM(100, input_shape=(x_train.shape[-2:]), return_sequences=False))
+    model.add(tf.keras.layers.Dropout(.3))
     model.add(tf.keras.layers.Dense(180, activation='relu'))
     model.compile(optimizer=tf.keras.optimizers.Adam(), loss='mse')
     history = model.fit(train, epochs = 300, validation_data=val_data_multi)

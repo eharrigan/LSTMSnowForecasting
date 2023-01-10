@@ -16,13 +16,13 @@ dataset = pd.read_pickle("data/MHP.pkl")
 
 BATCH_SIZE = 32 
 BUFFER_SIZE = 10000
-history =720 
+history =1200 
 target = 180
 
 
 features = dataset[['DEPTH', 'SWC', 'TEMP']]
 features.index = dataset['DATE TIME']
-TRAIN_SPLIT = len(features)*2//3
+TRAIN_SPLIT = len(features)*3//5
 sc = MinMaxScaler(feature_range=(0,1))
 data = features.values
 data_transformed = sc.fit_transform(data)
@@ -119,7 +119,7 @@ if __name__ == "__main__":
     model.add(tf.keras.layers.LSTM(100, input_shape=(x_train.shape[-2:]), return_sequences=False))
     model.add(tf.keras.layers.Dropout(.3))
     model.add(tf.keras.layers.Dense(180, activation='relu'))
-    model.compile(optimizer=tf.keras.optimizers.Adam(), loss='mse')
+    model.compile(optimizer=tf.keras.optimizers.SGD(learning_rate=.001), loss='mse')
     history = model.fit(train, epochs = 300, validation_data=val_data_multi)
     tf.keras.models.save_model(model, "test.h5")
     #tuner.search(

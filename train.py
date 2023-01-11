@@ -23,7 +23,7 @@ target = 180
 features = dataset[['DEPTH', 'SWC', 'TEMP']]
 features.index = dataset['DATE TIME']
 TRAIN_SPLIT = len(features)*3//5
-sc = MinMaxScaler(feature_range=(0,1))
+sc = MinMaxScaler(feature_range=(-1,1))
 data = features.values
 data_transformed = sc.fit_transform(data)
 
@@ -114,13 +114,13 @@ if __name__ == "__main__":
             executions_per_trial=1,
             project_name=PROJECT_NAME)
     model = tf.keras.models.Sequential()
-    model.add(tf.keras.layers.LSTM(150, input_shape=(x_train.shape[-2:]), return_sequences=True))
+    #model.add(tf.keras.layers.LSTM(150, input_shape=(x_train.shape[-2:]), return_sequences=True))
 
-    model.add(tf.keras.layers.LSTM(100, input_shape=(x_train.shape[-2:]), return_sequences=False))
-    model.add(tf.keras.layers.Dropout(.3))
+    model.add(tf.keras.layers.LSTM(150, input_shape=(x_train.shape[-2:]), return_sequences=False))
+    model.add(tf.keras.layers.Dropout(.4))
     model.add(tf.keras.layers.Dense(180, activation='relu'))
-    model.compile(optimizer=tf.keras.optimizers.SGD(learning_rate=.001), loss='mse')
-    history = model.fit(train, epochs = 300, validation_data=val_data_multi)
+    model.compile(optimizer=tf.keras.optimizers.Adam(), loss='mae')
+    history = model.fit(train, epochs = 30, validation_data=val_data_multi)
     tf.keras.models.save_model(model, "test.h5")
     #tuner.search(
     #        x=x_train,

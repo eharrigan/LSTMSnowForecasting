@@ -14,17 +14,18 @@ dataset = pd.read_pickle("data/MHP.pkl")
 
 
 
-BATCH_SIZE = 32 
+BATCH_SIZE = 64 
 BUFFER_SIZE = 10000
 history =1200 
 target = 180
 
 
-features = dataset[['DEPTH', 'SWC', 'TEMP']]
+features = dataset[['SWC']]
 features.index = dataset['DATE TIME']
 TRAIN_SPLIT = len(features)*3//5
-sc = MinMaxScaler(feature_range=(-1,1))
+sc = MinMaxScaler(feature_range=(0,1))
 data = features.values
+print(data.shape)
 data_transformed = sc.fit_transform(data)
 
 
@@ -57,7 +58,7 @@ def multi_step_plot(history, true_future, prediction):
     num_in = create_time_steps(len(history))
     num_out = len(true_future)
 
-    plt.plot(num_in, np.array(history[:, 1]), label='History')
+    plt.plot(num_in, np.array(history[0]), label='History')
     plt.plot(np.arange(num_out)/1, np.array(true_future), 'bo',
            label='True Future')
     if prediction.any():
@@ -88,12 +89,12 @@ def build_model(hp):
 
 
 
-x_train, y_train = multivariate_data(data_transformed, data_transformed[:, 1], 0, TRAIN_SPLIT, history, target, 1)
-x_test, y_test = multivariate_data(data_transformed, data_transformed[:, 1], TRAIN_SPLIT, None, history, target, 1)
+x_train, y_train = multivariate_data(data_transformed, data_transformed, 0, TRAIN_SPLIT, history, target, 1)
+x_test, y_test = multivariate_data(data_transformed, data_transformed, TRAIN_SPLIT, None, history, target, 1)
 train = tf.data.Dataset.from_tensor_slices((x_train, y_train)).shuffle(10000).batch(BATCH_SIZE)
 x_shape = x_train.shape
 y_shape = y_train.shape
-print(x_shape)
+print(x_shape[-2:])
 print(x_test.shape)
 x_train = np.concatenate([x for x, y in train], axis=0).reshape(x_shape)
 y_train = np.concatenate([y for x, y in train], axis=0).reshape(y_shape)
@@ -116,10 +117,10 @@ if __name__ == "__main__":
     model = tf.keras.models.Sequential()
     #model.add(tf.keras.layers.LSTM(150, input_shape=(x_train.shape[-2:]), return_sequences=True))
 
-    model.add(tf.keras.layers.LSTM(150, input_shape=(x_train.shape[-2:]), return_sequences=False))
+    model.add(tf.keras.layers.LSTM(250, input_shape=(x_shape[-2:]), return_sequences=False))
     model.add(tf.keras.layers.Dropout(.4))
-    model.add(tf.keras.layers.Dense(180, activation='relu'))
-    model.compile(optimizer=tf.keras.optimizers.Adam(), loss='mae')
+    model.add(tf.keras.layers.Dense(180, activation='sigmoid'))
+    model.compile(optimizer=tf.keras.optimizers.RMSprop(), loss='mse')
     history = model.fit(train, epochs = 30, validation_data=val_data_multi)
     tf.keras.models.save_model(model, "test.h5")
     #tuner.search(

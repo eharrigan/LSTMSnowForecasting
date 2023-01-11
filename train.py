@@ -16,7 +16,7 @@ dataset = pd.read_pickle("data/MHP.pkl")
 
 BATCH_SIZE = 64 
 BUFFER_SIZE = 10000
-history =1200 
+history =900 
 target = 180
 
 

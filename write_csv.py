@@ -32,10 +32,8 @@ for station_id in ["CAP", "MHP"]:
     complete_df['TEMP'] = complete_df['TEMP'].interpolate(method='linear', limit_direction='forward')
     complete_df['SWC'] = complete_df['SWC'].interpolate(method='linear', limit_direction='forward')
     complete_df['DATE TIME'] = pd.to_datetime(complete_df['DATE TIME'])
-    complete_df.plot(subplots=True, figsize=(15,6))
-    plt.show()
     complete_df.to_pickle("data/" + station_id + ".pkl")
-
+    print(complete_df.head)
 #        depth_reader = csv.DictReader(depth)
 #        temp_reader = csv.DictReader(temp)
 #        swc_reader = csv.DictReader(swc)
